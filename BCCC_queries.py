@@ -98,8 +98,44 @@ def query2(params: Dict[str, str]) -> str:
         """.format(Department_name=params["Department_name"], Section_date_start=date_start, Section_date_end=date_end)
 
 
-def query3():
-    print("Query 3!")
+def query3(params: Dict[str, str]) -> str:
+    return """
+        SELECT
+            fname,
+            lname
+        FROM
+            Id_christian
+        WHERE
+            id IN (
+                SELECT
+                    id_card
+                FROM
+                    Staff_christian
+                WHERE
+                    id IN (
+                        SELECT
+                            instructor_id
+                        FROM
+                            Section_christian
+                        WHERE
+                            course_code IN (
+                                SELECT
+                                    course_code
+                                FROM
+                                    Program_Courses_christian
+                                WHERE
+                                    program_id = (
+                                        SELECT
+                                            id
+                                        FROM
+                                            Program_christian
+                                        WHERE
+                                            name = "{Program_name}"
+                                    )
+                            )
+                    )
+            );
+        """.format(**params)
 
 
 def query4():
@@ -137,7 +173,7 @@ def query10():
 query_dict = {
     1:  ("List the names of the courses offered by a specific program.", ["Program_name"], query1),
     2:  ("List what courses are offered in a specific department during a specific semester.", ["Section_semester", "Department_name"], query2),
-    3:  ("List the first and last names of staff that teach a course in a specific program.", query3),
+    3:  ("List the first and last names of staff that teach a course in a specific program.", ["Program_name"], query3),
     4:  ("List the first and last names of staff that are also an advisor.", query4),
     5:  ("List the first and last names of students who have a specific staff member as an advisor.", query5),
     6:  ("Retrieve how many students withdrew/dropped a specific course during a specific semester.", query6),
@@ -227,8 +263,8 @@ class App:
             right_frame, text="This is a test label that is a lot longer than the other text!").pack()
         Label(right_frame, text="This is where the results should show up, ideally with a scrollbar for long lists.").pack()
 
-    # Currently only Query 1 works, which is checked for here.
-    # Any other queries just print "Query X!"
+    # Currently only Queries 1, 2, 3 work, which is checked for here for debugging purposes.
+    # Any other Queries just print "Query X!"
     def run_query(self, query_num):
         if (query_num < 1):
             # Show error if not already visible
@@ -240,7 +276,7 @@ class App:
             # Hide error if visible
             if self.query_error.winfo_viewable():
                 self.query_error.pack_forget()
-            if (query_num == 1 or query_num == 2):
+            if (query_num <= 3):
                 cursor = db.cursor()
                 params = []
                 params_needed = query_dict[query_num][1]
