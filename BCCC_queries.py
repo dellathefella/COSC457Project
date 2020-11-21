@@ -1,4 +1,5 @@
 from tkinter import *
+from tkinter.ttk import *
 import mysql.connector
 import asyncio
 from typing import *
@@ -14,6 +15,13 @@ db = mysql.connector.connect(
 
 # Create window object
 app = Tk()
+
+# Styles
+style = Style()
+style.configure("Error.TLabel", foreground="red", font=("bold", 12))
+style.configure("TButton", font=("bold", 12), padding=10)
+
+# Hold the results from our database queries
 results: List[Tuple[str, ...]] = []
 
 
@@ -69,7 +77,7 @@ def query2(params: Dict[str, str]) -> str:
     else:  # default to all courses
         date_start = '2020-01-01'
         date_end = '2020-12-31'
-        print("Invalid semester entered! Defaulting to all courses...")
+        print("[!] Invalid semester entered! Defaulting to all courses...")
 
     return """
         SELECT
@@ -138,31 +146,57 @@ def query3(params: Dict[str, str]) -> str:
         """.format(**params)
 
 
-def query4():
-    print("Query 4!")
+def query4(params: Dict[str, str]) -> str:
+    return """
+        SELECT
+            fname,
+            lname
+        FROM
+            Id_christian
+        WHERE
+            id IN (
+                SELECT
+                    id_card
+                FROM
+                    Staff_christian
+                WHERE
+                    id IN (
+                        SELECT
+                            advisor_id
+                        FROM
+                            Department_christian
+                    )
+                    OR id IN (
+                        SELECT
+                            advisor_id
+                        FROM
+                            Student_christian
+                    )
+            );
+        """
 
 
-def query5():
+def query5(params: Dict[str, str]) -> str:
     print("Query 5!")
 
 
-def query6():
+def query6(params: Dict[str, str]) -> str:
     print("Query 6!")
 
 
-def query7():
+def query7(params: Dict[str, str]) -> str:
     print("Query 7!")
 
 
-def query8():
+def query8(params: Dict[str, str]) -> str:
     print("Query 8!")
 
 
-def query9():
+def query9(params: Dict[str, str]) -> str:
     print("Query 9!")
 
 
-def query10():
+def query10(params: Dict[str, str]) -> str:
     print("Query 10!")
 
 
@@ -174,13 +208,13 @@ query_dict = {
     1:  ("List the names of the courses offered by a specific program.", ["Program_name"], query1),
     2:  ("List what courses are offered in a specific department during a specific semester.", ["Section_semester", "Department_name"], query2),
     3:  ("List the first and last names of staff that teach a course in a specific program.", ["Program_name"], query3),
-    4:  ("List the first and last names of staff that are also an advisor.", query4),
-    5:  ("List the first and last names of students who have a specific staff member as an advisor.", query5),
-    6:  ("Retrieve how many students withdrew/dropped a specific course during a specific semester.", query6),
-    7:  ("Generate a list of professsors who have taught at Baltimore City Community College for >= five years as of a specific semester.", query7),
-    8:  ("List all of the first and last names of students enrolled in a specific program who are female.", query8),
-    9:  ("Find the name of the student who has a specific ID no.", query9),
-    10: ("List the grade records of all of the courses during a specific semester for a particular student.", query10)
+    4:  ("List the first and last names of staff that are also an advisor.", [], query4),
+    5:  ("List the first and last names of students who have a specific staff member as an advisor.", [], query5),
+    6:  ("Retrieve how many students withdrew/dropped a specific course during a specific semester.", [], query6),
+    7:  ("Generate a list of professsors who have taught at Baltimore City Community College for >= five years as of a specific semester.", [], query7),
+    8:  ("List all of the first and last names of students enrolled in a specific program who are female.", [], query8),
+    9:  ("Find the name of the student who has a specific ID no.", [], query9),
+    10: ("List the grade records of all of the courses during a specific semester for a particular student.", [], query10)
 }
 
 
@@ -189,7 +223,7 @@ class Dialog:
         popup = self.popup = Toplevel(main)
         popup.title("Enter parameters")
 
-        params_box = self.params_box = Frame(popup, padx=10, pady=10)
+        params_box = self.params_box = Frame(popup, padding=[10, 10])
         params_box.pack()
 
         self.entries = {}
@@ -202,10 +236,10 @@ class Dialog:
             e.grid(row=num, column=1)
             self.entries[param_name] = e
 
-        button_frame = self.button_frame = Frame(popup, pady=10)
+        button_frame = self.button_frame = Frame(popup, padding=[0, 10])
         button_frame.pack()
-        Button(button_frame, text="Submit", command=self.pull_data_from_entries, font=("bold", 12),
-               padx=10, pady=10).pack()
+        Button(button_frame, text="Submit",
+               command=self.pull_data_from_entries).pack()
 
         self.params = {}
         self.error = None
@@ -217,7 +251,7 @@ class Dialog:
                 if not self.error:
                     # Show error
                     self.error = Label(
-                        self.popup, text="Please provide all parameters", font=("bold", 12), fg="red")
+                        self.popup, text="Please provide all parameters", style="Error.TLabel")
                     self.error.pack()
                 return
             else:
@@ -228,18 +262,19 @@ class Dialog:
 class App:
     def __init__(self, app):
         main = self.main = app
+
         # Define left and right halves
-        left_frame = self.left_frame = Frame(main, padx=20)
-        right_frame = self.right_frame = Frame(main, padx=20)
+        left_frame = self.left_frame = Frame(main, padding=[20, 0])
+        right_frame = self.right_frame = Frame(main, padding=[20, 0])
         left_frame.grid(row=0, column=0)
         right_frame.grid(row=0, column=1)
 
-        title_frame = self.title_frame = Frame(left_frame, pady=10)
+        title_frame = self.title_frame = Frame(left_frame, padding=[0, 10])
         title_frame.pack()
         Label(title_frame, text="Select your query below:",
-              font=("bold", 12), pady=10).pack()
+              font=("bold", 12), padding=[0, 10]).pack()
         self.query_error = Label(
-            self.title_frame, text="Please select a query", font=("bold", 12), fg="red")
+            self.title_frame, text="Please select a query", style="Error.TLabel")
 
         # Frame for list of available queries
         query_list_frame = self.query_list_frame = LabelFrame(
@@ -252,10 +287,10 @@ class App:
                         text=query_dict[i][0], variable=query_num, value=i).pack(anchor=W)
 
         execute_button_frame = self.execute_button_frame = Frame(
-            left_frame, pady=10)
+            left_frame, padding=[0, 10])
         execute_button_frame.pack()
-        execute_button = self.execute_button = Button(execute_button_frame, text="Execute query",
-                                                      font=("bold", 12), padx=10, pady=10, command=lambda: self.run_query(query_num.get()))
+        execute_button = self.execute_button = Button(
+            execute_button_frame, text="Execute query", command=lambda: self.run_query(query_num.get()))
         execute_button.pack()
 
         # Right frame results list
@@ -276,27 +311,28 @@ class App:
             # Hide error if visible
             if self.query_error.winfo_viewable():
                 self.query_error.pack_forget()
-            if (query_num <= 3):
-                cursor = db.cursor()
-                params = []
-                params_needed = query_dict[query_num][1]
-                if (params_needed):
-                    dialog = Dialog(self.main, params_needed)
-                    self.main.wait_window(dialog.popup)
-                    params = dialog.params
-                    del dialog  # we don't need it any more, created per-query
-                    # If we close the window, don't run the query
-                    if (len(params) != len(params_needed)):
-                        self.execute_button["state"] = "normal"
-                        return
-                print("params = " + str(params))
-                cursor.execute(query_dict[query_num][2](params))
-                results.clear()
-                for result in cursor:
-                    results.append(result)
-                print(results)
-            else:
-                query_dict[query_num][1]()
+            # if (query_num <= 3):
+            cursor = db.cursor()
+            params: Dict[str, str] = []
+            params_needed: List[str] = query_dict[query_num][1]
+            if (params_needed):
+                dialog = Dialog(self.main, params_needed)
+                self.main.wait_window(dialog.popup)
+                params = dialog.params
+                del dialog  # we don't need it any more, created per-query
+                # If we close the window early (press X on window), don't run the query
+                if (len(params) != len(params_needed)):
+                    self.execute_button["state"] = "normal"
+                    return
+            print("[=] params = " + str(params))
+            cursor.execute(query_dict[query_num][2](params))
+            results.clear()
+            for result in cursor:
+                results.append(result)
+
+            print("[+] " + str(results) + "\n")
+            # else:
+            #    query_dict[query_num][1]()
             self.execute_button["state"] = "normal"
 
 
