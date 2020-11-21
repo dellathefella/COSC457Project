@@ -18,32 +18,84 @@ results: List[Tuple[str, ...]] = []
 
 
 def query1(params: Dict[str, str]) -> str:
-    return '                                        \
-        SELECT                                      \
-            title                                   \
-        FROM                                        \
-            Course_christian                        \
-        WHERE                                       \
-            code IN (                               \
-                SELECT                              \
-                    course_code                     \
-                FROM                                \
-                    Program_Courses_christian       \
-                WHERE                               \
-                    program_id = (                  \
-                        SELECT                      \
-                            id                      \
-                        FROM                        \
-                            Program_christian       \
-                        WHERE                       \
-                            name = "{Program_name}" \
-                    )                               \
-            );                                      \
-    '.format(**params)
+    return """
+        SELECT
+            title
+        FROM
+            Course_christian
+        WHERE
+            code IN (
+                SELECT
+                    course_code
+                FROM
+                    Program_Courses_christian
+                WHERE
+                    program_id = (
+                        SELECT
+                            id
+                        FROM
+                            Program_christian
+                        WHERE
+                            name = "{Program_name}"
+                    )
+            );
+        """.format(**params)
 
 
-def query2() -> str:
-    print("Query 2!")
+def query2(params: Dict[str, str]) -> str:
+    # Fall:     August 24th - December 14th
+    # Winter:   January 4th - January 22nd
+    # Spring:   January 25th - May 18th
+    # Summer:   May 24th - August 3rd
+    #
+    # We're only looking for the semester, not the year, so the default
+    # year will always be 2020 since it doesn't matter.
+    #
+    # Calculate dates based off of semester:
+    date_start = ''
+    date_end = ''
+    if (params['Section_semester'].lower() == 'fall'):
+        date_start = '2020-08-24'
+        date_end = '2020-12-14'
+    elif (params['Section_semester'].lower() == 'winter'):
+        date_start = '2020-01-04'
+        date_end = '2020-01-22'
+    elif (params['Section_semester'].lower() == 'spring'):
+        date_start = '2020-01-25'
+        date_end = '2020-05-18'
+    elif (params['Section_semester'].lower() == 'summer'):
+        date_start = '2020-05-24'
+        date_end = '2020-08-03'
+    else:  # default to all courses
+        date_start = '2020-01-01'
+        date_end = '2020-12-31'
+        print("Invalid semester entered! Defaulting to all courses...")
+
+    return """
+        SELECT
+            code,
+            title
+        FROM
+            Course_christian
+        WHERE
+            dep_num = (
+                SELECT
+                    dep_num
+                FROM
+                    Department_christian
+                WHERE
+                    name = "{Department_name}"
+            )
+            AND code IN (
+                SELECT
+                    course_code
+                FROM
+                    Section_christian
+                WHERE
+                    DAYOFYEAR(date_start) >= DAYOFYEAR("{Section_date_start}")
+                    AND DAYOFYEAR(date_end) <= DAYOFYEAR("{Section_date_end}")
+            );
+        """.format(Department_name=params["Department_name"], Section_date_start=date_start, Section_date_end=date_end)
 
 
 def query3():
@@ -84,7 +136,7 @@ def query10():
 # If the attribute you need is, for example,'Program -> name', use the naming convention 'Program_name'
 query_dict = {
     1:  ("List the names of the courses offered by a specific program.", ["Program_name"], query1),
-    2:  ("List what courses are offered in a specific department during a specific semester.", query2),
+    2:  ("List what courses are offered in a specific department during a specific semester.", ["Section_semester", "Department_name"], query2),
     3:  ("List the first and last names of staff that teach a course in a specific program.", query3),
     4:  ("List the first and last names of staff that are also an advisor.", query4),
     5:  ("List the first and last names of students who have a specific staff member as an advisor.", query5),
@@ -104,22 +156,36 @@ class Dialog:
         params_box = self.params_box = Frame(popup, padx=10, pady=10)
         params_box.pack()
 
-        self.params = {}
+        self.entries = {}
         for num, param_name in enumerate(params_needed):
-            Label(params_box, anchor=W, text=param_name +
-                  ":").grid(row=num, column=0)
+            # Replace the underscores with spaces for nicer display
+            param_name_split = param_name.split("_")
+            Label(params_box, anchor=W, text=" ".join(
+                param_name_split) + ":").grid(row=num, column=0)
             e = Entry(params_box)
             e.grid(row=num, column=1)
-            self.params[param_name] = e
+            self.entries[param_name] = e
 
         button_frame = self.button_frame = Frame(popup, pady=10)
         button_frame.pack()
         Button(button_frame, text="Submit", command=self.pull_data_from_entries, font=("bold", 12),
                padx=10, pady=10).pack()
 
-    def pull_data_from_entries(self) -> Dict[str, str]:
-        for entry in self.params:
-            self.params[entry] = self.params[entry].get()
+        self.params = {}
+        self.error = None
+
+    def pull_data_from_entries(self) -> None:
+        for entry_name in self.entries:
+            if not self.entries[entry_name].get():
+                # Don't show error if it's already showing
+                if not self.error:
+                    # Show error
+                    self.error = Label(
+                        self.popup, text="Please provide all parameters", font=("bold", 12), fg="red")
+                    self.error.pack()
+                return
+            else:
+                self.params[entry_name] = self.entries[entry_name].get()
         self.popup.destroy()
 
 
@@ -136,6 +202,8 @@ class App:
         title_frame.pack()
         Label(title_frame, text="Select your query below:",
               font=("bold", 12), pady=10).pack()
+        self.query_error = Label(
+            self.title_frame, text="Please select a query", font=("bold", 12), fg="red")
 
         # Frame for list of available queries
         query_list_frame = self.query_list_frame = LabelFrame(
@@ -163,10 +231,16 @@ class App:
     # Any other queries just print "Query X!"
     def run_query(self, query_num):
         if (query_num < 1):
-            print("Please select a query")
+            # Show error if not already visible
+            if not self.query_error.winfo_viewable():
+                # Show error
+                self.query_error.pack()
         else:
             self.execute_button["state"] = "disabled"
-            if (query_num == 1):
+            # Hide error if visible
+            if self.query_error.winfo_viewable():
+                self.query_error.pack_forget()
+            if (query_num == 1 or query_num == 2):
                 cursor = db.cursor()
                 params = []
                 params_needed = query_dict[query_num][1]
@@ -175,6 +249,10 @@ class App:
                     self.main.wait_window(dialog.popup)
                     params = dialog.params
                     del dialog  # we don't need it any more, created per-query
+                    # If we close the window, don't run the query
+                    if (len(params) != len(params_needed)):
+                        self.execute_button["state"] = "normal"
+                        return
                 print("params = " + str(params))
                 cursor.execute(query_dict[query_num][2](params))
                 results.clear()
