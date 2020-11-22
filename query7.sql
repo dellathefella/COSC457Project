@@ -17,5 +17,5 @@ WHERE
 				FROM
 					Section_christian
 			)
-			AND DATEDIFF("2020-08-24", date_hired) <= -1826
+			AND DATEDIFF("2020-08-24", date_hired) >= 1826
 	);

@@ -293,7 +293,39 @@ def query7(params: Dict[str, str]) -> str:
 
 
 def query8(params: Dict[str, str]) -> str:
-    print("Query 8!")
+    return """
+        SELECT
+            fname,
+            lname
+        FROM
+            Id_christian
+        WHERE
+            sex = "F"
+            AND id IN (
+                SELECT
+                    id_card
+                FROM
+                    Student_christian
+                WHERE
+                    id IN (
+                        SELECT
+                            student_id
+                        FROM
+                            Program_Enrollment_christian
+                        WHERE
+                            program_id = (
+                                SELECT
+                                    id
+                                FROM
+                                    Program_christian
+                                WHERE
+                                    name = "{Program_name}"
+                            )
+                    )
+            );
+        """.format(
+        **params
+    )
 
 
 def query9(params: Dict[str, str]) -> str:
@@ -305,7 +337,12 @@ def query10(params: Dict[str, str]) -> str:
 
 
 # List of all possible queries
-# Description, Parameters needed, Query function
+#
+# num: (
+#       "Displayed text",
+#        ["List", "Of", "Parameters"],
+#        function_name
+# )
 #
 # If the attribute you need is, for example,'Program -> name', use the naming convention 'Program_name'
 query_dict = {
@@ -342,7 +379,7 @@ query_dict = {
     ),
     8: (
         "List all of the first and last names of students enrolled in a specific program who are female.",
-        [],
+        ["Program_name"],
         query8,
     ),
     9: ("Find the name of the student who has a specific ID no.", [], query9),
