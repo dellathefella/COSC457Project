@@ -241,7 +241,7 @@ def query6(params: Dict[str, str]) -> str:
         FROM
             Student_Sections_christian
         WHERE
-            STATUS = "dropped"
+            STATUS = "{Student_Sections_status}"
             AND section_id IN (
                 SELECT
                     id
@@ -253,7 +253,8 @@ def query6(params: Dict[str, str]) -> str:
                     AND date_end <= "{Section_date_end}"
             );
         """.format(
-        Department_name=params["Course_code"],
+        Student_Sections_status=params["Student_Sections_status"],
+        Course_code=params["Course_code"],
         Section_date_start=date_start,
         Section_date_end=date_end,
     )
@@ -303,7 +304,7 @@ query_dict = {
     ),
     6: (
         "Retrieve how many students withdrew/dropped a specific course during a specific semester.",
-        ["Course_code", "Section_semester", "Section_year"],
+        ["Student_Sections_status", "Course_code", "Section_semester", "Section_year"],
         query6,
     ),
     7: (
