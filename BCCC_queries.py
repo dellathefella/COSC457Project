@@ -11,6 +11,7 @@ db = mysql.connector.connect(
     password="ERDSaresofun",
     database="cosc457"
 )
+cursor = db.cursor()
 
 
 # Create window object
@@ -20,9 +21,9 @@ app = Tk()
 style = Style()
 style.configure("Error.TLabel", foreground="red", font=("bold", 12))
 style.configure("TButton", font=("bold", 12), padding=10)
+style.configure("Treeview.Heading", foreground="red", font=("bold", 12))
 
-# Hold the results from our database queries
-results: List[Tuple[str, ...]] = []
+style.configure("Test.TFrame", background="silver")
 
 
 def query1(params: Dict[str, str]) -> str:
@@ -218,12 +219,12 @@ query_dict = {
 }
 
 
-class Dialog:
+class ParamsDialog:
     def __init__(self, main, params_needed: List[str]):
         popup = self.popup = Toplevel(main)
         popup.title("Enter parameters")
 
-        params_box = self.params_box = Frame(popup, padding=[10, 10])
+        params_box = Frame(popup, padding=[10, 10])
         params_box.pack()
 
         self.entries = {}
@@ -259,81 +260,189 @@ class Dialog:
         self.popup.destroy()
 
 
+class QueryDialog:
+    def __init__(self, main):
+        popup = self.popup = Toplevel(main)
+        popup.title("Custom query")
+        popup.geometry("400x600")
+
+        Label(popup, text="Type your query below. Be careful!",
+              font=("bold", 12), padding=10).pack()
+
+        self.query = StringVar()
+
+        entry_frame = Frame(popup, padding=10, height=400)
+        entry_frame.pack()
+        Entry(entry_frame, textvariable=self.query).pack(fill=BOTH)
+
+        button_frame = self.button_frame = Frame(popup, padding=10)
+        button_frame.pack()
+        Button(button_frame, text="Submit",
+               command=self.return_query).pack()
+
+        self.error = None
+
+    def return_query(self) -> str:
+        if not self.query.get():
+            if not self.error:
+                self.error = Label(
+                    self.popup, text="Please enter your query", style="Error.TLabel")
+                self.error.pack()
+            return
+        else:
+            self.popup.destroy()
+
+
 class App:
     def __init__(self, app):
         main = self.main = app
 
         # Define left and right halves
-        left_frame = self.left_frame = Frame(main, padding=[20, 0])
-        right_frame = self.right_frame = Frame(main, padding=[20, 0])
-        left_frame.grid(row=0, column=0)
-        right_frame.grid(row=0, column=1)
+        left_frame = Frame(main, padding=[20, 0])
+        left_frame.pack(side="left")
 
-        title_frame = self.title_frame = Frame(left_frame, padding=[0, 10])
+        right_frame = Frame(main, padding=20, width=600,
+                            height=360, style="Test.TFrame")
+        right_frame.pack_propagate(0)
+        right_frame.pack(side="right", fill="both")
+
+        title_frame = Frame(left_frame, padding=[0, 10])
         title_frame.pack()
         Label(title_frame, text="Select your query below:",
               font=("bold", 12), padding=[0, 10]).pack()
-        self.query_error = Label(
-            self.title_frame, text="Please select a query", style="Error.TLabel")
+        # Error label
+        self.error_label = Label(
+            title_frame, text="", style="Error.TLabel")
+
+        self.error_selection = "Please select a query"
+        self.error_custom_syntax = "Query syntax incorrect"
 
         # Frame for list of available queries
-        query_list_frame = self.query_list_frame = LabelFrame(
+        query_list_frame = LabelFrame(
             left_frame, text="Query list")
         query_list_frame.pack()
 
-        query_num = self.query_num = IntVar(0)
+        query_num = IntVar(0)
         for i in range(1, len(query_dict)+1):
             Radiobutton(query_list_frame,
                         text=query_dict[i][0], variable=query_num, value=i).pack(anchor=W)
 
-        execute_button_frame = self.execute_button_frame = Frame(
-            left_frame, padding=[0, 10])
-        execute_button_frame.pack()
-        execute_button = self.execute_button = Button(
-            execute_button_frame, text="Execute query", command=lambda: self.run_query(query_num.get()))
-        execute_button.pack()
+        button_frame = Frame(left_frame, padding=10)
+        button_frame.pack()
+        button_spacer1 = Frame(button_frame, padding=10)
+        button_spacer1.grid(row=0, column=0)
+        button_spacer2 = Frame(button_frame, padding=10)
+        button_spacer2.grid(row=0, column=1)
+        execute_selected_button = self.execute_selected_button = Button(
+            button_spacer1, text="Execute SELECTED query", command=lambda: self.run_selected_query(query_num.get()))
+        execute_selected_button.pack()
+        execute_custom_button = self.execute_custom_button = Button(
+            button_spacer2, text="Execute CUSTOM query", command=self.run_custom_query)
+        execute_custom_button.pack()
 
         # Right frame results list
-        Label(
-            right_frame, text="This is a test label that is a lot longer than the other text!").pack()
-        Label(right_frame, text="This is where the results should show up, ideally with a scrollbar for long lists.").pack()
+        results_table = self.results_table = Treeview(right_frame)
+        # phantom column used for expanding labels
+        results_table.column("#0", width=50, stretch=False)
+        results_table.heading("#0", text="#", anchor=CENTER)
+        results_xscroll = Scrollbar(
+            right_frame, orient="horizontal", command=results_table.xview)
+        results_xscroll.pack(side="bottom", fill="x")
+        results_vscroll = Scrollbar(
+            right_frame, orient="vertical", command=results_table.yview)
+        results_vscroll.pack(side="right", fill="y")
+        results_table.configure(xscrollcommand=results_xscroll.set)
+        results_table.configure(yscrollcommand=results_vscroll.set)
+        results_table.pack(fill="both", expand=True)
 
-    # Currently only Queries 1, 2, 3 work, which is checked for here for debugging purposes.
-    # Any other Queries just print "Query X!"
-    def run_query(self, query_num):
+    def run_selected_query(self, query_num):
         if (query_num < 1):
             # Show error if not already visible
-            if not self.query_error.winfo_viewable():
+            self.error_label["text"] = self.error_selection
+            if not self.error_label.winfo_viewable():
                 # Show error
-                self.query_error.pack()
+                self.error_label.pack()
         else:
-            self.execute_button["state"] = "disabled"
+            self.execute_selected_button["state"] = "disabled"
+            self.execute_custom_button["state"] = "disabled"
             # Hide error if visible
-            if self.query_error.winfo_viewable():
-                self.query_error.pack_forget()
-            # if (query_num <= 3):
-            cursor = db.cursor()
+            if self.error_label.winfo_viewable():
+                self.error_label.pack_forget()
             params: Dict[str, str] = []
             params_needed: List[str] = query_dict[query_num][1]
             if (params_needed):
-                dialog = Dialog(self.main, params_needed)
+                dialog = ParamsDialog(self.main, params_needed)
                 self.main.wait_window(dialog.popup)
                 params = dialog.params
                 del dialog  # we don't need it any more, created per-query
-                # If we close the window early (press X on window), don't run the query
+                # If we close the window early (X out of it), don't run the query
                 if (len(params) != len(params_needed)):
-                    self.execute_button["state"] = "normal"
+                    self.execute_selected_button["state"] = "normal"
+                    self.execute_custom_button["state"] = "normal"
                     return
-            print("[=] params = " + str(params))
+            print("[*] params = " + str(params))
             cursor.execute(query_dict[query_num][2](params))
-            results.clear()
-            for result in cursor:
-                results.append(result)
+            column_names = cursor.column_names
+            returned_rows = [row for row in cursor]
+            self.populate_results_table(column_names, returned_rows)
+            print("[+] " + str(column_names))
+            print("[+] " + str(returned_rows) + "\n")
+            self.execute_selected_button["state"] = "normal"
+            self.execute_custom_button["state"] = "normal"
 
-            print("[+] " + str(results) + "\n")
-            # else:
-            #    query_dict[query_num][1]()
-            self.execute_button["state"] = "normal"
+    def run_custom_query(self):
+        self.execute_selected_button["state"] = "disabled"
+        self.execute_custom_button["state"] = "disabled"
+        query_window = QueryDialog(self.main)
+        self.main.wait_window(query_window.popup)
+        query: str = query_window.query.get()
+        del query_window  # we don't need it any more, created per-query
+        print("[*] query = " + query)
+        # If we close the window early (X out of it), don't run the query
+        if (not query):
+            self.execute_selected_button["state"] = "normal"
+            self.execute_custom_button["state"] = "normal"
+            return
+        try:
+            cursor.execute(query)
+            column_names = cursor.column_names
+            returned_rows = [row for row in cursor]
+            self.populate_results_table(column_names, returned_rows)
+            # Hide error if visible
+            if self.error_label.winfo_viewable():
+                self.error_label.pack_forget()
+            print("[+] " + str(column_names))
+            print("[+] " + str(returned_rows) + "\n")
+        except mysql.connector.errors.ProgrammingError:
+            # Show error if not already visible
+            self.error_label["text"] = self.error_custom_syntax
+            if not self.error_label.winfo_viewable():
+                # Show error
+                self.error_label.pack()
+        self.execute_selected_button["state"] = "normal"
+        self.execute_custom_button["state"] = "normal"
+
+    def populate_results_table(self, column_names: Tuple[str, ...], returned_rows: List[Tuple[str, ...]]):
+        # Clear table rows before inserting new ones
+        self.results_table.delete(*self.results_table.get_children())
+
+        # Set columns
+        self.results_table["columns"] = column_names
+
+        # Create column formats and column headings
+        for col_name in column_names:
+            self.results_table.column(col_name, anchor=W, width=100)
+            self.results_table.heading(col_name, text=col_name, anchor=W)
+
+        # Insert data
+        # `parent` would be for nesting things, so we make it blank
+        # `index="end"`` means "put it underneath of everything", building onto the list.
+        # `iid` is a unique identifier
+        # `text` is what goes in that phantom column, like the parent label (but we have no nesting/parents here)
+        if returned_rows:
+            for num, row in enumerate(returned_rows):
+                self.results_table.insert(
+                    parent="", index="end", iid=num, text=num+1, values=row)
 
 
 # Currently results are just printed to console
