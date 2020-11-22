@@ -351,7 +351,30 @@ def query9(params: Dict[str, str]) -> str:
 
 
 def query10(params: Dict[str, str]) -> str:
-    print("Query 10!")
+    date_start, date_end = semester_to_dates(
+        params["Section_semester"], params["Section_year"]
+    )
+    return """
+        SELECT
+            grade
+        FROM
+            Student_Sections_christian
+        WHERE
+            student_id = {Student_id}
+            AND section_id IN (
+                SELECT
+                    id
+                FROM
+                    Section_christian
+                WHERE
+                    date_start >= "{Section_date_start}"
+                    AND date_end <= "{Section_date_end}"
+            );
+        """.format(
+        Student_id=params["Student_id"],
+        Section_date_start=date_start,
+        Section_date_end=date_end,
+    )
 
 
 # List of all possible queries
@@ -407,7 +430,7 @@ query_dict = {
     ),
     10: (
         "List the grade records of all of the courses during a specific semester for a particular student.",
-        [],
+        ["Student_id", "Section_semester", "Section_year"],
         query10,
     ),
 }
