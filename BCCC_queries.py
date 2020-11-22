@@ -261,7 +261,35 @@ def query6(params: Dict[str, str]) -> str:
 
 
 def query7(params: Dict[str, str]) -> str:
-    print("Query 7!")
+    date_start, date_end = semester_to_dates(
+        params["Section_semester"], params["Section_year"]
+    )
+    # 1826 days = 365 days * 5 years + 1 leap day (at least one, could be two)
+    return """
+        SELECT
+            fname,
+            mname,
+            lname
+        FROM
+            Id_christian
+        WHERE
+            id IN (
+                SELECT
+                    id_card
+                FROM
+                    Staff_christian
+                WHERE
+                    id IN (
+                        SELECT
+                            instructor_id
+                        FROM
+                            Section_christian
+                    )
+                    AND DATEDIFF("{semester_date_start}", date_hired) >= 1826
+            );
+        """.format(
+        semester_date_start=date_start
+    )
 
 
 def query8(params: Dict[str, str]) -> str:
@@ -309,7 +337,7 @@ query_dict = {
     ),
     7: (
         "Generate a list of professsors who have taught at Baltimore City Community College for >= five years as of a specific semester.",
-        [],
+        ["Section_semester", "Section_year"],
         query7,
     ),
     8: (
