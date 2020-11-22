@@ -1,15 +1,16 @@
 from tkinter import *
 from tkinter.ttk import *
-import mysql.connector
-import asyncio
 from typing import *
+from sys import exit
+
+import mysql.connector
 
 # Database Credentials
 db = mysql.connector.connect(
     host="epsilon1.duckdns.org",
     user="cosc457user",
     password="ERDSaresofun",
-    database="cosc457"
+    database="cosc457",
 )
 cursor = db.cursor()
 
@@ -21,6 +22,7 @@ app = Tk()
 style = Style()
 style.configure("Error.TLabel", foreground="red", font=("bold", 12))
 style.configure("TButton", font=("bold", 12), padding=10)
+# style.configure("TText", padding=10, font=("Consolas", 10))
 style.configure("Treeview.Heading", foreground="red", font=("bold", 12))
 
 style.configure("Test.TFrame", background="silver")
@@ -48,7 +50,9 @@ def query1(params: Dict[str, str]) -> str:
                             name = "{Program_name}"
                     )
             );
-        """.format(**params)
+        """.format(
+        **params
+    )
 
 
 def query2(params: Dict[str, str]) -> str:
@@ -61,23 +65,23 @@ def query2(params: Dict[str, str]) -> str:
     # year will always be 2020 since it doesn't matter.
     #
     # Calculate dates based off of semester:
-    date_start = ''
-    date_end = ''
-    if (params['Section_semester'].lower() == 'fall'):
-        date_start = '2020-08-24'
-        date_end = '2020-12-14'
-    elif (params['Section_semester'].lower() == 'winter'):
-        date_start = '2020-01-04'
-        date_end = '2020-01-22'
-    elif (params['Section_semester'].lower() == 'spring'):
-        date_start = '2020-01-25'
-        date_end = '2020-05-18'
-    elif (params['Section_semester'].lower() == 'summer'):
-        date_start = '2020-05-24'
-        date_end = '2020-08-03'
+    date_start = ""
+    date_end = ""
+    if params["Section_semester"].lower() == "fall":
+        date_start = "2020-08-24"
+        date_end = "2020-12-14"
+    elif params["Section_semester"].lower() == "winter":
+        date_start = "2020-01-04"
+        date_end = "2020-01-22"
+    elif params["Section_semester"].lower() == "spring":
+        date_start = "2020-01-25"
+        date_end = "2020-05-18"
+    elif params["Section_semester"].lower() == "summer":
+        date_start = "2020-05-24"
+        date_end = "2020-08-03"
     else:  # default to all courses
-        date_start = '2020-01-01'
-        date_end = '2020-12-31'
+        date_start = "2020-01-01"
+        date_end = "2020-12-31"
         print("[!] Invalid semester entered! Defaulting to all courses...")
 
     return """
@@ -104,7 +108,11 @@ def query2(params: Dict[str, str]) -> str:
                     DAYOFYEAR(date_start) >= DAYOFYEAR("{Section_date_start}")
                     AND DAYOFYEAR(date_end) <= DAYOFYEAR("{Section_date_end}")
             );
-        """.format(Department_name=params["Department_name"], Section_date_start=date_start, Section_date_end=date_end)
+        """.format(
+        Department_name=params["Department_name"],
+        Section_date_start=date_start,
+        Section_date_end=date_end,
+    )
 
 
 def query3(params: Dict[str, str]) -> str:
@@ -144,7 +152,9 @@ def query3(params: Dict[str, str]) -> str:
                             )
                     )
             );
-        """.format(**params)
+        """.format(
+        **params
+    )
 
 
 def query4(params: Dict[str, str]) -> str:
@@ -178,7 +188,39 @@ def query4(params: Dict[str, str]) -> str:
 
 
 def query5(params: Dict[str, str]) -> str:
-    print("Query 5!")
+    return """
+        SELECT
+            fname,
+            lname
+        FROM
+            Id_christian
+        WHERE
+            id IN (
+                SELECT
+                    id_card
+                FROM
+                    Student_christian
+                WHERE
+                    advisor_id = (
+                        SELECT
+                            id
+                        FROM
+                            Staff_christian
+                        WHERE
+                            id_card = (
+                                SELECT
+                                    id
+                                FROM
+                                    Id_christian
+                                WHERE
+                                    fname = "{Advisor_fname}"
+                                    AND lname = "{Advisor_lname}"
+                            )
+                    )
+            );
+        """.format(
+        **params
+    )
 
 
 def query6(params: Dict[str, str]) -> str:
@@ -206,16 +248,48 @@ def query10(params: Dict[str, str]) -> str:
 #
 # If the attribute you need is, for example,'Program -> name', use the naming convention 'Program_name'
 query_dict = {
-    1:  ("List the names of the courses offered by a specific program.", ["Program_name"], query1),
-    2:  ("List what courses are offered in a specific department during a specific semester.", ["Section_semester", "Department_name"], query2),
-    3:  ("List the first and last names of staff that teach a course in a specific program.", ["Program_name"], query3),
-    4:  ("List the first and last names of staff that are also an advisor.", [], query4),
-    5:  ("List the first and last names of students who have a specific staff member as an advisor.", [], query5),
-    6:  ("Retrieve how many students withdrew/dropped a specific course during a specific semester.", [], query6),
-    7:  ("Generate a list of professsors who have taught at Baltimore City Community College for >= five years as of a specific semester.", [], query7),
-    8:  ("List all of the first and last names of students enrolled in a specific program who are female.", [], query8),
-    9:  ("Find the name of the student who has a specific ID no.", [], query9),
-    10: ("List the grade records of all of the courses during a specific semester for a particular student.", [], query10)
+    1: (
+        "List the names of the courses offered by a specific program.",
+        ["Program_name"],
+        query1,
+    ),
+    2: (
+        "List what courses are offered in a specific department during a specific semester.",
+        ["Section_semester", "Department_name"],
+        query2,
+    ),
+    3: (
+        "List the first and last names of staff that teach a course in a specific program.",
+        ["Program_name"],
+        query3,
+    ),
+    4: ("List the first and last names of staff that are also an advisor.", [], query4),
+    5: (
+        "List the first and last names of students who have a specific staff member as an advisor.",
+        ["Advisor_fname", "Advisor_lname"],
+        query5,
+    ),
+    6: (
+        "Retrieve how many students withdrew/dropped a specific course during a specific semester.",
+        [],
+        query6,
+    ),
+    7: (
+        "Generate a list of professsors who have taught at Baltimore City Community College for >= five years as of a specific semester.",
+        [],
+        query7,
+    ),
+    8: (
+        "List all of the first and last names of students enrolled in a specific program who are female.",
+        [],
+        query8,
+    ),
+    9: ("Find the name of the student who has a specific ID no.", [], query9),
+    10: (
+        "List the grade records of all of the courses during a specific semester for a particular student.",
+        [],
+        query10,
+    ),
 }
 
 
@@ -231,16 +305,16 @@ class ParamsDialog:
         for num, param_name in enumerate(params_needed):
             # Replace the underscores with spaces for nicer display
             param_name_split = param_name.split("_")
-            Label(params_box, anchor=W, text=" ".join(
-                param_name_split) + ":").grid(row=num, column=0)
+            Label(params_box, anchor=W, text=" ".join(param_name_split) + ":").grid(
+                row=num, column=0
+            )
             e = Entry(params_box)
-            e.grid(row=num, column=1)
+            e.grid(row=num, column=1, padx=10, pady=5)
             self.entries[param_name] = e
 
         button_frame = self.button_frame = Frame(popup, padding=[0, 10])
         button_frame.pack()
-        Button(button_frame, text="Submit",
-               command=self.pull_data_from_entries).pack()
+        Button(button_frame, text="Submit", command=self.pull_data_from_entries).pack()
 
         self.params = {}
         self.error = None
@@ -252,7 +326,10 @@ class ParamsDialog:
                 if not self.error:
                     # Show error
                     self.error = Label(
-                        self.popup, text="Please provide all parameters", style="Error.TLabel")
+                        self.popup,
+                        text="Please provide all parameters",
+                        style="Error.TLabel",
+                    )
                     self.error.pack()
                 return
             else:
@@ -264,21 +341,26 @@ class QueryDialog:
     def __init__(self, main):
         popup = self.popup = Toplevel(main)
         popup.title("Custom query")
-        popup.geometry("400x600")
 
-        Label(popup, text="Type your query below. Be careful!",
-              font=("bold", 12), padding=10).pack()
+        Label(
+            popup,
+            text="Type your query below. Be careful!",
+            font=("bold", 12),
+            padding=10,
+        ).pack()
 
         self.query = StringVar()
 
-        entry_frame = Frame(popup, padding=10, height=400)
-        entry_frame.pack()
-        Entry(entry_frame, textvariable=self.query).pack(fill=BOTH)
+        # For some reason Text() is returning a 'str' object and not the widget...?
+        # query_box = Text(self.popup)
+
+        entry_frame = Frame(popup, padding=10, style="Test.TFrame")
+        entry_frame.pack(fill="both")
+        Entry(entry_frame, textvariable=self.query).pack(fill="both")
 
         button_frame = self.button_frame = Frame(popup, padding=10)
         button_frame.pack()
-        Button(button_frame, text="Submit",
-               command=self.return_query).pack()
+        Button(button_frame, text="Submit", command=self.return_query).pack()
 
         self.error = None
 
@@ -286,7 +368,8 @@ class QueryDialog:
         if not self.query.get():
             if not self.error:
                 self.error = Label(
-                    self.popup, text="Please enter your query", style="Error.TLabel")
+                    self.popup, text="Please enter your query", style="Error.TLabel"
+                )
                 self.error.pack()
             return
         else:
@@ -301,31 +384,35 @@ class App:
         left_frame = Frame(main, padding=[20, 0])
         left_frame.pack(side="left")
 
-        right_frame = Frame(main, padding=20, width=600,
-                            height=360, style="Test.TFrame")
-        right_frame.pack_propagate(0)
+        right_frame = Frame(
+            main, padding=20, width=600, height=360, style="Test.TFrame"
+        )
+        right_frame.pack_propagate(0)  # force dimensions
         right_frame.pack(side="right", fill="both")
 
         title_frame = Frame(left_frame, padding=[0, 10])
         title_frame.pack()
-        Label(title_frame, text="Select your query below:",
-              font=("bold", 12), padding=[0, 10]).pack()
+        Label(
+            title_frame,
+            text="Select your query below:",
+            font=("bold", 12),
+            padding=[0, 10],
+        ).pack()
         # Error label
-        self.error_label = Label(
-            title_frame, text="", style="Error.TLabel")
+        self.error_label = Label(title_frame, text="", style="Error.TLabel")
 
         self.error_selection = "Please select a query"
         self.error_custom_syntax = "Query syntax incorrect"
 
         # Frame for list of available queries
-        query_list_frame = LabelFrame(
-            left_frame, text="Query list")
+        query_list_frame = LabelFrame(left_frame, text="Query list")
         query_list_frame.pack()
 
         query_num = IntVar(0)
-        for i in range(1, len(query_dict)+1):
-            Radiobutton(query_list_frame,
-                        text=query_dict[i][0], variable=query_num, value=i).pack(anchor=W)
+        for i in range(1, len(query_dict) + 1):
+            Radiobutton(
+                query_list_frame, text=query_dict[i][0], variable=query_num, value=i
+            ).pack(anchor=W)
 
         button_frame = Frame(left_frame, padding=10)
         button_frame.pack()
@@ -334,52 +421,65 @@ class App:
         button_spacer2 = Frame(button_frame, padding=10)
         button_spacer2.grid(row=0, column=1)
         execute_selected_button = self.execute_selected_button = Button(
-            button_spacer1, text="Execute SELECTED query", command=lambda: self.run_selected_query(query_num.get()))
+            button_spacer1,
+            text="Execute SELECTED query",
+            command=lambda: self.run_selected_query(query_num.get()),
+        )
         execute_selected_button.pack()
         execute_custom_button = self.execute_custom_button = Button(
-            button_spacer2, text="Execute CUSTOM query", command=self.run_custom_query)
+            button_spacer2, text="Execute CUSTOM query", command=self.run_custom_query
+        )
         execute_custom_button.pack()
 
         # Right frame results list
         results_table = self.results_table = Treeview(right_frame)
+
         # phantom column used for expanding labels
         results_table.column("#0", width=50, stretch=False)
         results_table.heading("#0", text="#", anchor=CENTER)
+
+        # Results table scrollbars
         results_xscroll = Scrollbar(
-            right_frame, orient="horizontal", command=results_table.xview)
+            right_frame, orient="horizontal", command=results_table.xview
+        )
         results_xscroll.pack(side="bottom", fill="x")
         results_vscroll = Scrollbar(
-            right_frame, orient="vertical", command=results_table.yview)
+            right_frame, orient="vertical", command=results_table.yview
+        )
         results_vscroll.pack(side="right", fill="y")
         results_table.configure(xscrollcommand=results_xscroll.set)
         results_table.configure(yscrollcommand=results_vscroll.set)
+
         results_table.pack(fill="both", expand=True)
 
     def run_selected_query(self, query_num):
-        if (query_num < 1):
+        if query_num < 1:
             # Show error if not already visible
             self.error_label["text"] = self.error_selection
             if not self.error_label.winfo_viewable():
                 # Show error
                 self.error_label.pack()
         else:
-            self.execute_selected_button["state"] = "disabled"
-            self.execute_custom_button["state"] = "disabled"
+            self.disable_buttons()
             # Hide error if visible
             if self.error_label.winfo_viewable():
                 self.error_label.pack_forget()
             params: Dict[str, str] = []
             params_needed: List[str] = query_dict[query_num][1]
-            if (params_needed):
+            if params_needed:
                 dialog = ParamsDialog(self.main, params_needed)
                 self.main.wait_window(dialog.popup)
                 params = dialog.params
                 del dialog  # we don't need it any more, created per-query
                 # If we close the window early (X out of it), don't run the query
-                if (len(params) != len(params_needed)):
-                    self.execute_selected_button["state"] = "normal"
-                    self.execute_custom_button["state"] = "normal"
-                    return
+                if len(params) != len(params_needed):
+                    # Check if the MAIN window was closed while the params dialog was open
+                    try:
+                        self.enable_buttons()
+                        return
+                    except:
+                        print("[!] Main window was closed! Exiting...")
+                        exit(0)
             print("[*] params = " + str(params))
             cursor.execute(query_dict[query_num][2](params))
             column_names = cursor.column_names
@@ -387,22 +487,24 @@ class App:
             self.populate_results_table(column_names, returned_rows)
             print("[+] " + str(column_names))
             print("[+] " + str(returned_rows) + "\n")
-            self.execute_selected_button["state"] = "normal"
-            self.execute_custom_button["state"] = "normal"
+            self.enable_buttons()
 
     def run_custom_query(self):
-        self.execute_selected_button["state"] = "disabled"
-        self.execute_custom_button["state"] = "disabled"
+        self.disable_buttons()
         query_window = QueryDialog(self.main)
         self.main.wait_window(query_window.popup)
         query: str = query_window.query.get()
         del query_window  # we don't need it any more, created per-query
         print("[*] query = " + query)
         # If we close the window early (X out of it), don't run the query
-        if (not query):
-            self.execute_selected_button["state"] = "normal"
-            self.execute_custom_button["state"] = "normal"
-            return
+        if not query:
+            # Check if the MAIN window was closed while the params dialog was open
+            try:
+                self.enable_buttons()
+                return
+            except:
+                print("[!] Main window was closed! Exiting...")
+                exit(0)
         try:
             cursor.execute(query)
             column_names = cursor.column_names
@@ -419,10 +521,11 @@ class App:
             if not self.error_label.winfo_viewable():
                 # Show error
                 self.error_label.pack()
-        self.execute_selected_button["state"] = "normal"
-        self.execute_custom_button["state"] = "normal"
+        self.enable_buttons()
 
-    def populate_results_table(self, column_names: Tuple[str, ...], returned_rows: List[Tuple[str, ...]]):
+    def populate_results_table(
+        self, column_names: Tuple[str, ...], returned_rows: List[Tuple[str, ...]]
+    ):
         # Clear table rows before inserting new ones
         self.results_table.delete(*self.results_table.get_children())
 
@@ -442,10 +545,18 @@ class App:
         if returned_rows:
             for num, row in enumerate(returned_rows):
                 self.results_table.insert(
-                    parent="", index="end", iid=num, text=num+1, values=row)
+                    parent="", index="end", iid=num, text=num + 1, values=row
+                )
+
+    def enable_buttons(self):
+        self.execute_selected_button["state"] = "normal"
+        self.execute_custom_button["state"] = "normal"
+
+    def disable_buttons(self):
+        self.execute_selected_button["state"] = "disabled"
+        self.execute_custom_button["state"] = "disabled"
 
 
-# Currently results are just printed to console
 if __name__ == "__main__":
     # Configure window settings
     app.title("BCCC Database Interactions")
