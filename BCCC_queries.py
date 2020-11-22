@@ -28,6 +28,35 @@ style.configure("Treeview.Heading", foreground="red", font=("bold", 12))
 style.configure("Test.TFrame", background="silver")
 
 
+def semester_to_dates(semester: str) -> Tuple[str, str]:
+    # Fall:     August 24th - December 14th
+    # Winter:   January 4th - January 22nd
+    # Spring:   January 25th - May 18th
+    # Summer:   May 24th - August 3rd
+    #
+    # We're only looking for the semester (month and day), not the year,
+    # so the default year will always be 2020 since it doesn't matter.
+
+    date_start, date_end = "", ""
+    if semester.lower() == "fall":
+        date_start = "2020-08-24"
+        date_end = "2020-12-14"
+    elif semester.lower() == "winter":
+        date_start = "2020-01-04"
+        date_end = "2020-01-22"
+    elif semester.lower() == "spring":
+        date_start = "2020-01-25"
+        date_end = "2020-05-18"
+    elif semester.lower() == "summer":
+        date_start = "2020-05-24"
+        date_end = "2020-08-03"
+    else:  # default to all courses
+        date_start = "2020-01-01"
+        date_end = "2020-12-31"
+        print("[!] Invalid semester entered! Defaulting to all courses...")
+    return (date_start, date_end)
+
+
 def query1(params: Dict[str, str]) -> str:
     return """
         SELECT
@@ -56,33 +85,8 @@ def query1(params: Dict[str, str]) -> str:
 
 
 def query2(params: Dict[str, str]) -> str:
-    # Fall:     August 24th - December 14th
-    # Winter:   January 4th - January 22nd
-    # Spring:   January 25th - May 18th
-    # Summer:   May 24th - August 3rd
-    #
-    # We're only looking for the semester, not the year, so the default
-    # year will always be 2020 since it doesn't matter.
-    #
     # Calculate dates based off of semester:
-    date_start = ""
-    date_end = ""
-    if params["Section_semester"].lower() == "fall":
-        date_start = "2020-08-24"
-        date_end = "2020-12-14"
-    elif params["Section_semester"].lower() == "winter":
-        date_start = "2020-01-04"
-        date_end = "2020-01-22"
-    elif params["Section_semester"].lower() == "spring":
-        date_start = "2020-01-25"
-        date_end = "2020-05-18"
-    elif params["Section_semester"].lower() == "summer":
-        date_start = "2020-05-24"
-        date_end = "2020-08-03"
-    else:  # default to all courses
-        date_start = "2020-01-01"
-        date_end = "2020-12-31"
-        print("[!] Invalid semester entered! Defaulting to all courses...")
+    date_start, date_end = semester_to_dates(params["Section_semester"])
 
     return """
         SELECT
@@ -224,7 +228,31 @@ def query5(params: Dict[str, str]) -> str:
 
 
 def query6(params: Dict[str, str]) -> str:
-    print("Query 6!")
+    # Calculate dates based off of semester:
+    date_start, date_end = semester_to_dates(params["Section_semester"])
+
+    return """
+        SELECT
+            COUNT(student_id) AS num_students
+        FROM
+            Student_Sections_christian
+        WHERE
+            STATUS = "dropped"
+            AND section_id IN (
+                SELECT
+                    id
+                FROM
+                    Section_christian
+                WHERE
+                    course_code = "{Course_code}"
+                    AND date_start >= "{Section_date_start}"
+                    AND date_end <= "{Section_date_end}"
+            );
+        """.format(
+        Department_name=params["Course_code"],
+        Section_date_start=date_start,
+        Section_date_end=date_end,
+    )
 
 
 def query7(params: Dict[str, str]) -> str:
@@ -255,7 +283,7 @@ query_dict = {
     ),
     2: (
         "List what courses are offered in a specific department during a specific semester.",
-        ["Section_semester", "Department_name"],
+        ["Department_name", "Section_semester"],
         query2,
     ),
     3: (
@@ -271,7 +299,7 @@ query_dict = {
     ),
     6: (
         "Retrieve how many students withdrew/dropped a specific course during a specific semester.",
-        [],
+        ["Course_code", "Section_semester"],
         query6,
     ),
     7: (
