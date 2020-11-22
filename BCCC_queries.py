@@ -28,32 +28,32 @@ style.configure("Treeview.Heading", foreground="red", font=("bold", 12))
 style.configure("Test.TFrame", background="silver")
 
 
-def semester_to_dates(semester: str) -> Tuple[str, str]:
+def semester_to_dates(semester: str, year: str) -> Tuple[str, str]:
     # Fall:     August 24th - December 14th
     # Winter:   January 4th - January 22nd
     # Spring:   January 25th - May 18th
     # Summer:   May 24th - August 3rd
     #
-    # We're only looking for the semester (month and day), not the year,
-    # so the default year will always be 2020 since it doesn't matter.
+    # A "specific semester" contains a month-day range and a year.
 
     date_start, date_end = "", ""
     if semester.lower() == "fall":
-        date_start = "2020-08-24"
-        date_end = "2020-12-14"
+        date_start = "{}-08-24".format(year)
+        date_end = "{}-12-14".format(year)
     elif semester.lower() == "winter":
-        date_start = "2020-01-04"
-        date_end = "2020-01-22"
+        date_start = "{}-01-04".format(year)
+        date_end = "{}-01-22".format(year)
     elif semester.lower() == "spring":
-        date_start = "2020-01-25"
-        date_end = "2020-05-18"
+        date_start = "{}-01-25".format(year)
+        date_end = "{}-05-18".format(year)
     elif semester.lower() == "summer":
-        date_start = "2020-05-24"
-        date_end = "2020-08-03"
-    else:  # default to all courses
-        date_start = "2020-01-01"
-        date_end = "2020-12-31"
-        print("[!] Invalid semester entered! Defaulting to all courses...")
+        date_start = "{}-05-24".format(year)
+        date_end = "{}-08-03".format(year)
+    else:  # default to entire year
+        # We can do this because we have no semesters that wrap into other years
+        date_start = "{}-01-01".format(year)
+        date_end = "{}-12-31".format(year)
+        print("[!] Invalid semester entered! Defaulting to entire year...")
     return (date_start, date_end)
 
 
@@ -86,7 +86,9 @@ def query1(params: Dict[str, str]) -> str:
 
 def query2(params: Dict[str, str]) -> str:
     # Calculate dates based off of semester:
-    date_start, date_end = semester_to_dates(params["Section_semester"])
+    date_start, date_end = semester_to_dates(
+        params["Section_semester"], params["Section_year"]
+    )
 
     return """
         SELECT
@@ -109,8 +111,8 @@ def query2(params: Dict[str, str]) -> str:
                 FROM
                     Section_christian
                 WHERE
-                    DAYOFYEAR(date_start) >= DAYOFYEAR("{Section_date_start}")
-                    AND DAYOFYEAR(date_end) <= DAYOFYEAR("{Section_date_end}")
+                    date_start >= "{Section_date_start}"
+                    AND date_end <= "{Section_date_end}"
             );
         """.format(
         Department_name=params["Department_name"],
@@ -229,7 +231,9 @@ def query5(params: Dict[str, str]) -> str:
 
 def query6(params: Dict[str, str]) -> str:
     # Calculate dates based off of semester:
-    date_start, date_end = semester_to_dates(params["Section_semester"])
+    date_start, date_end = semester_to_dates(
+        params["Section_semester"], params["Section_year"]
+    )
 
     return """
         SELECT
@@ -283,7 +287,7 @@ query_dict = {
     ),
     2: (
         "List what courses are offered in a specific department during a specific semester.",
-        ["Department_name", "Section_semester"],
+        ["Department_name", "Section_semester", "Section_year"],
         query2,
     ),
     3: (
@@ -299,7 +303,7 @@ query_dict = {
     ),
     6: (
         "Retrieve how many students withdrew/dropped a specific course during a specific semester.",
-        ["Course_code", "Section_semester"],
+        ["Course_code", "Section_semester", "Section_year"],
         query6,
     ),
     7: (
@@ -333,8 +337,8 @@ class ParamsDialog:
         for num, param_name in enumerate(params_needed):
             # Replace the underscores with spaces for nicer display
             param_name_split = param_name.split("_")
-            Label(params_box, anchor=W, text=" ".join(param_name_split) + ":").grid(
-                row=num, column=0
+            Label(params_box, text=" ".join(param_name_split) + ":").grid(
+                row=num, column=0, sticky=E
             )
             e = Entry(params_box)
             e.grid(row=num, column=1, padx=10, pady=5)
