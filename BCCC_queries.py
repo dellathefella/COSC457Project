@@ -329,7 +329,25 @@ def query8(params: Dict[str, str]) -> str:
 
 
 def query9(params: Dict[str, str]) -> str:
-    print("Query 9!")
+    return """
+        SELECT
+            fname,
+            mname,
+            lname
+        FROM
+            Id_christian
+        WHERE
+            id = (
+                SELECT
+                    id_card
+                FROM
+                    Student_christian
+                WHERE
+                    id = {Student_id}
+            );
+        """.format(
+        **params
+    )
 
 
 def query10(params: Dict[str, str]) -> str:
@@ -382,7 +400,11 @@ query_dict = {
         ["Program_name"],
         query8,
     ),
-    9: ("Find the name of the student who has a specific ID no.", [], query9),
+    9: (
+        "Find the name of the student who has a specific ID no.",
+        ["Student_id"],
+        query9,
+    ),
     10: (
         "List the grade records of all of the courses during a specific semester for a particular student.",
         [],
