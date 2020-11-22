@@ -441,6 +441,9 @@ class ParamsDialog:
         popup = self.popup = Toplevel(main)
         popup.title("Enter parameters")
 
+        self.title_frame = Frame(popup, padding=[0, 10])
+        self.title_frame.pack()
+
         params_box = Frame(popup, padding=[10, 10])
         params_box.pack()
 
@@ -469,7 +472,7 @@ class ParamsDialog:
                 if not self.error:
                     # Show error
                     self.error = Label(
-                        self.popup,
+                        self.title_frame,
                         text="Please provide all parameters",
                         style="Error.TLabel",
                     )
@@ -485,8 +488,11 @@ class QueryDialog:
         popup = self.popup = Toplevel(main)
         popup.title("Custom query")
 
+        self.title_frame = Frame(popup, padding=[0, 10])
+        self.title_frame.pack()
+
         Label(
-            popup,
+            self.title_frame,
             text="Type your query below. Be careful!",
             font=("bold", 12),
             padding=10,
@@ -511,7 +517,9 @@ class QueryDialog:
         if not self.query.get():
             if not self.error:
                 self.error = Label(
-                    self.popup, text="Please enter your query", style="Error.TLabel"
+                    self.title_frame,
+                    text="Please enter your query",
+                    style="Error.TLabel",
                 )
                 self.error.pack()
             return
