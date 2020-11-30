@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter.ttk import *
 from typing import *
 from sys import exit
+from datetime import datetime
 
 import mysql.connector
 
@@ -35,6 +36,12 @@ def semester_to_dates(semester: str, year: str) -> Tuple[str, str]:
     # Summer:   May 24th - August 3rd
     #
     # A "specific semester" contains a month-day range and a year.
+
+    # Validate the provided year: must be a 4-digit integer
+    if (not year.isdecimal()) or not (len(year) == 4):
+        current_year = datetime.today().year
+        print("[!] Invalid year entered! Defaulting to {}...".format(current_year))
+        year = current_year
 
     date_start, date_end = "", ""
     if semester.lower() == "fall":
@@ -539,7 +546,7 @@ class App:
             main, padding=20, width=600, height=360, style="Test.TFrame"
         )
         right_frame.pack_propagate(0)  # force dimensions
-        right_frame.pack(side="right", fill="both")
+        right_frame.pack(side="right", fill="both", expand=True)
 
         title_frame = Frame(left_frame, padding=[0, 10])
         title_frame.pack()
